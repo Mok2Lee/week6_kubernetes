@@ -19,12 +19,25 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 5000
+          env:
+            - name: METRICS_URL
+              value: http://metrics:8000
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           readinessProbe:
             httpGet:
               path: /api/health
               port: 5000
             initialDelaySeconds: 2
             periodSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             requests:
               cpu: 100m
