@@ -1,13 +1,21 @@
 # 6주차 Kubernetes 실습
 
-지난주 Flask·nginx의 기능을 **Compose 요청 발생기 → Kubernetes API**로 연결합니다. 요청량을 바꾸고, 요청이 여러 Pod에 분산되며 Pod 수가 자동으로 달라지는 과정을 확인합니다.
+지난주 Flask·nginx의 기능을 **Compose 요청 발생기 → Kubernetes API**로 연결합니다. 요청량을 바꾸고, 요청이 여러 Pod에 분산되며 Pod 수가 자동으로 달라지는 과정을 확인합니다. **요청 발생기와 수신 프로젝트는 별도 저장소**입니다.
+
+| 저장소 | 역할 | 작업 폴더 |
+| --- | --- | --- |
+| `week6_practice` | Minikube의 API·대시보드·HPA | `week6` |
+| `week6_sender` | Docker Compose 요청 발생기 | `week6_sender` |
+
+두 작업 폴더는 같은 상위 폴더 아래 나란히 둡니다. 발생기 코드를 `week6` 안으로 옮기지 않습니다.
 
 ## 1. 작업 폴더 준비
 
-Docker Desktop을 실행하고 **Linux 컨테이너**가 준비될 때까지 기다립니다. 교수자가 접근 권한을 제공한 week6_practice를 본인 계정으로 Fork한 뒤, 본인 작업 폴더에서 실행합니다. `내계정`을 실제 GitHub 계정으로 바꿉니다.
+Docker Desktop을 실행하고 **Linux 컨테이너**가 준비될 때까지 기다립니다. 교수자가 접근 권한을 제공한 두 저장소를 본인 계정으로 Fork한 뒤, 두 폴더를 만들 상위 폴더에서 실행합니다. `내계정`을 실제 GitHub 계정으로 바꿉니다. 교수자가 ZIP으로 제공하면 각각 `week6`, `week6_sender` 폴더에 풉니다.
 
 ```powershell
 git clone https://github.com/내계정/week6_practice.git week6
+git clone https://github.com/내계정/week6_sender.git week6_sender
 Set-Location .\week6
 code .
 docker version
@@ -15,7 +23,7 @@ docker compose version
 minikube version
 ```
 
-**확인:** Docker의 Client·Server가 모두 표시되고 `api`, `nginx`, `metrics`, `sender`, `k8s`, `scripts` 폴더가 보입니다. VS Code 터미널은 **PowerShell**을 사용합니다. 기존 week5 폴더는 이번 작업 폴더와 구분합니다.
+**확인:** Docker의 Client·Server가 모두 표시됩니다. `week6` 안에는 `api`, `nginx`, `metrics`, `k8s`, `scripts`가 있고, 옆의 `week6_sender` 안에는 `app.py`, `compose.yaml`, `static`이 있습니다. VS Code 터미널은 **PowerShell**을 사용합니다. 기존 week5 폴더는 이번 작업 폴더와 구분합니다.
 
 Minikube는 수업에서 제공한 설치 파일을 사용합니다. 설치 후 새 터미널을 엽니다. Flask·Python은 이미지 안에 설치하므로 Windows에 별도로 설치하지 않습니다.
 
@@ -114,16 +122,16 @@ kubectl get pods -l app=api
 
 ## 6. Compose 요청 발생기 실행
 
-**터미널 B**에서 실행합니다.
+**터미널 B**가 `week6` 폴더인 상태에서 실행합니다. `..\week6_sender`는 옆에 있는 별도 프로젝트입니다.
 
 ```powershell
-Set-Location .\sender
+Set-Location ..\week6_sender
 docker compose up -d --build
 docker compose ps
-Set-Location ..
+Set-Location ..\week6
 ```
 
-**확인:** `week5_sender01`이 실행됩니다. <http://localhost:8090>을 엽니다.
+**확인:** `week6_sender01`이 실행됩니다. <http://localhost:8090>을 엽니다. `week6` 폴더에서 `docker compose`를 실행하지 않습니다.
 
 요청 발생기는 Compose로만 실행합니다. 대상은 PC의 8080 포트에 연결된 Kubernetes API입니다.
 
@@ -166,7 +174,9 @@ kubectl get pods -l app=api
 
 **HPA 실습 중에는 `kubectl scale`을 사용하지 않습니다.** 수동으로 바꾼 수를 HPA가 다시 조절할 수 있습니다.
 
-## 8. Pod 삭제와 자동 복구
+## 8. 추가 확인: Pod 삭제와 자동 복구
+
+기본 관찰을 마친 뒤 수업에서 안내한 경우 진행합니다. 과제의 필수 제출 항목은 아닙니다.
 
 120건/분으로 요청을 보내고 Pod 3개가 준비될 때까지 기다립니다. 터미널 B에서 실행합니다.
 
@@ -181,7 +191,9 @@ kubectl get pods -l app=api -w
 
 Deployment의 **삭제된 Pod 복구**와 HPA의 **요청량에 따른 개수 조절**을 구분합니다. 짧은 전환 중 요청이 실패할 수 있습니다. 이번 실습은 단일 노드이며 여러 서버의 장애 대응 시험은 아닙니다.
 
-## 9. 이미지 업데이트와 롤백
+## 9. 추가 확인: 이미지 업데이트와 롤백
+
+관리 동작을 확인하는 추가 실습입니다. 이번 과제에서 이미지 수정이나 롤백 결과를 제출하지 않습니다.
 
 week6 폴더에서 실행합니다. 기존 `week6_01`은 되돌리기용으로 남겨 둡니다.
 
@@ -208,9 +220,9 @@ curl.exe -s http://localhost:8080/api/health
 터미널 A에서 `Ctrl+C`로 port-forward를 종료합니다. 터미널 B의 week6 폴더에서 실행합니다.
 
 ```powershell
-Set-Location .\sender
+Set-Location ..\week6_sender
 docker compose down
-Set-Location ..
+Set-Location ..\week6
 & .\scripts\cleanup.ps1
 minikube stop
 ```
@@ -233,6 +245,6 @@ minikube stop
 
 ## 다음 단계
 
-기본 실습 뒤 [관리 기초](management-basics.md)에서 상태·로그·이벤트·설정·권한·저장소 관리의 역할을 정리하고 [추가 과제](assignment.md)를 진행합니다.
+과제는 [요청량 관찰과 HPA 기준 변경](assignment.md)입니다. 수신 저장소의 `k8s/hpa.yaml`만 기준 변경에 사용합니다. 요청 발생기는 화면의 설정값만 바꾸며 코드를 수정할 필요가 없습니다. [관리 기초](management-basics.md)는 추가 확인용입니다.
 
 공식 참고: [Minikube 시작](https://minikube.sigs.k8s.io/docs/start/), [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [Service](https://kubernetes.io/docs/concepts/services-networking/service/), [HPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/)

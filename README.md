@@ -1,6 +1,6 @@
 # 6주차 Kubernetes 자동 확장 실습
 
-지난주 Flask·nginx 웹 프로젝트를 **요청을 보내는 앱과 요청을 받는 앱**으로 나눕니다. 요청 발생기는 Docker Compose로 실행하고, API 서버와 대시보드는 Kubernetes로 실행합니다.
+이 저장소는 **요청을 받는 Kubernetes API와 대시보드**입니다. 요청을 보내는 앱은 별도 [week6_sender](https://github.com/Mok2Lee/week6_sender) 저장소에서 Docker Compose로 실행합니다. 지난주 Flask·nginx의 기능을 연결하며, 두 저장소를 같은 폴더에 합치지 않습니다.
 
 > 교수자 검토용 비공개 저장소입니다. 학생 접근 권한은 교수자가 정합니다.
 
@@ -9,7 +9,7 @@
 1. 요청 발생기의 슬라이더로 분당 요청량을 조절합니다.
 2. Kubernetes 대시보드에서 실제 요청 수와 API Pod별 처리 결과를 봅니다.
 3. HPA가 **Pod 1개당 분당 50건**을 기준으로 Pod 수를 바꾸는 과정을 확인합니다.
-4. Pod 삭제 후 복구와 새 이미지 배포·롤백을 확인합니다.
+4. HPA 기준을 **50 → 75건**으로 바꾸고 같은 요청량에서 Pod 수를 비교합니다.
 
 HPA는 실제 Pod당 평균 요청량을 목표 50건과 비교합니다. 전체 최근 60초 요청 수를 50으로 나눈 뒤 올림하면 이론적인 목표 Pod 수가 됩니다. 최소 1개, 최대 5개입니다. **50건은 실습용 설정값**이며 Flask 서버의 실제 처리 한계를 뜻하지 않습니다. 요청량을 바꾸면 집계 시간과 HPA 확인 주기 때문에 결과가 바로 바뀌지 않습니다.
 
@@ -19,12 +19,17 @@ Windows Docker Desktop의 Linux 컨테이너, VS Code의 PowerShell, Minikube를
 
 | 위치 | 역할 | 실행 환경 |
 |---|---|---|
-| `sender/` | 요청량 조절 화면과 요청 발생기 | Docker Compose |
 | `api/` | 요청 처리와 Pod 이름·응답 시간 반환 | Kubernetes |
 | `nginx/` | 대시보드 제공과 API 요청 전달 | Kubernetes |
 | `metrics/` | 최근 60초 요청 수를 HPA에 전달 | Kubernetes |
 | `k8s/` | Deployment·Service·HPA 등 설정 | Kubernetes |
 | `scripts/` | 지표 연결 설정과 실습 정리 | PowerShell |
+
+| 별도 저장소 | 역할 | 실행 방법 |
+|---|---|---|
+| [week6_sender](https://github.com/Mok2Lee/week6_sender) | API 선택·슬라이더·요청 전송 | 해당 저장소 루트에서 `docker compose up -d --build` |
+
+먼저 **week6_practice**를 실행해 8080 대시보드를 연결하고, 다음으로 **week6_sender**를 실행해 8090 요청 발생기를 엽니다. 발생기는 Docker Compose로, 이 저장소는 Minikube의 Kubernetes로 실행합니다.
 
 | 화면 | 주소 |
 |---|---|
@@ -32,7 +37,7 @@ Windows Docker Desktop의 Linux 컨테이너, VS Code의 PowerShell, Minikube를
 | Compose 요청 발생기 | `http://localhost:8090` |
 | 지난주 검색·분량 검사 | `http://localhost:8080/projects.html` |
 
-**[학생 실습 안내](docs/student-lab.md)** 순서대로 실행합니다. [관리 기초](docs/management-basics.md)와 [추가 과제](docs/assignment.md)는 기본 실습 뒤에 봅니다.
+**[학생 실습 안내](docs/student-lab.md)** 순서대로 실행합니다. 과제는 [요청량 관찰과 HPA 기준 변경](docs/assignment.md)입니다. [관리 기초](docs/management-basics.md)와 Pod 복구·이미지 롤백은 추가 확인용이며 과제 제출 항목이 아닙니다.
 
 Dockerfile에는 지난주와 같은 학교용 pip trusted-host 옵션을 넣었습니다. Minikube 첫 실행의 노드 이미지 다운로드는 별도 준비가 필요합니다.
 

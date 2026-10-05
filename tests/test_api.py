@@ -39,7 +39,7 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(response.headers['X-Metrics-Status'], 'recorded')
             self.assertNotIn('metrics_status', response.json)
             self.client.post('/api/analyze', json={'text': '소개 문장'})
-            self.client.post('/api/request', json={'source': 'week5_sender', 'sequence': 1})
+            self.client.post('/api/request', json={'source': 'week6_sender', 'sequence': 1})
             self.assertEqual(record.call_count, 3)
             paths = [call.args[0]['path'] for call in record.call_args_list]
             self.assertEqual(paths, ['/api/projects', '/api/analyze', '/api/request'])
