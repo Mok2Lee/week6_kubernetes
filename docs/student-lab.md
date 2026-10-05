@@ -122,13 +122,12 @@ kubectl get pods -l app=api
 
 ## 6. Compose 요청 발생기 실행
 
-**터미널 B**가 `week6` 폴더인 상태에서 실행합니다. `..\week6_sender`는 옆에 있는 별도 프로젝트입니다.
+`week6` 폴더에서 새 **터미널 C**를 열고 실행합니다. `..\week6_sender`는 옆에 있는 별도 프로젝트입니다. 터미널 B는 수신 프로젝트의 Pod·HPA 조회용으로 그대로 둡니다.
 
 ```powershell
 Set-Location ..\week6_sender
 docker compose up -d --build
 docker compose ps
-Set-Location ..\week6
 ```
 
 **확인:** `week6_sender01`이 실행됩니다. <http://localhost:8090>을 엽니다. `week6` 폴더에서 `docker compose`를 실행하지 않습니다.
@@ -217,12 +216,15 @@ curl.exe -s http://localhost:8080/api/health
 
 발생기에서 **요청 중지**를 누릅니다. 최근 60초 요청 수가 줄어드는 과정과 Pod 수가 최소 1개로 돌아오는 과정을 기록합니다. 집계 구간과 축소 대기 시간 때문에 **90초보다 오래 걸릴 수 있습니다**.
 
-터미널 A에서 `Ctrl+C`로 port-forward를 종료합니다. 터미널 B의 week6 폴더에서 실행합니다.
+먼저 **터미널 C**의 `week6_sender` 폴더에서 발생기를 종료합니다.
 
 ```powershell
-Set-Location ..\week6_sender
 docker compose down
-Set-Location ..\week6
+```
+
+터미널 A에서 `Ctrl+C`로 port-forward를 종료합니다. **터미널 B**의 `week6` 폴더에서 실행합니다.
+
+```powershell
 & .\scripts\cleanup.ps1
 minikube stop
 ```
