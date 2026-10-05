@@ -47,7 +47,7 @@ CPU `100m`은 0.1 CPU, 메모리 `128Mi`는 128 MiB입니다. CPU 상한은 실�
 
 ## 상태 → 이벤트 → 로그 → 연결
 
-기본 명령은 **터미널 A / `C:\lab\week6`**에서 실행합니다. 터미널 B는 대시보드 연결을 유지합니다.
+기본 명령은 **터미널 B / `C:\week6_kubernetes`**에서 실행합니다. 터미널 A는 발생기를 실행한 상태로 둡니다.
 
 ```powershell
 kubectl get nodes
@@ -65,7 +65,7 @@ kubectl get endpointslices
 |화면에 보이는 상태|다음 확인|
 |---|---|
 |`Pending`|Node 자원 부족·배치 조건 확인|
-|`ErrImageNeverPull`|제공 이미지 불러오기·이미지 이름·Minikube 이미지 전달 여부 확인|
+|`ErrImageNeverPull`|이미지 빌드·이미지 이름·Minikube 이미지 전달 여부 확인|
 |`CrashLoopBackOff`|앱 로그·실행 명령·환경 설정 확인|
 |실행 중인데 `Ready`가 0|readiness 경로·포트·응답 확인|
 |Pod는 준비됐는데 요청 실패|Service selector·포트·EndpointSlice 확인|
