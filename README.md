@@ -43,6 +43,6 @@ tests/               앱 동작 검증
 
 ## 강의 자료
 
-[강의 PPTX](materials/week6_Kubernetes_student_final.pptx) · [강의 PDF](materials/week6_Kubernetes_student_final.pdf)
+[강의 PPTX](materials/week6_Kubernetes_student_final.pptx) · [강의 PDF](materials/week6_Kubernetes_student_final.pdf) · [학생 실습 패키지 ZIP](materials/week6_student_package.zip)
 
 검증: Windows Docker Desktop와 Minikube에서 이미지 생성, Compose, Kubernetes 배포, 3개 Pod 확장·복구, v2 업데이트·v1 롤백까지 실제 통과했습니다. 학교 네트워크·SSL 우회 빌드·학교 CA 빌드는 미실행입니다.
