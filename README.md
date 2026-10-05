@@ -41,8 +41,5 @@ tests/               앱 동작 검증
 
 출처: [week5_practice](https://github.com/Mok2Lee/week5_practice/tree/3cc0ee782cf7b26886781598ab6e471d62304e71). 과제 저장소의 [SSL 수정](https://github.com/Mok2Lee/week5_workout/commit/792d1797ccfe12bc2d056606af54f50ec1e845c1)도 확인하여 학교용 빌드에 반영했습니다.
 
-## 강의 자료
-
-[강의 PPTX](materials/week6_Kubernetes_student_final.pptx) · [강의 PDF](materials/week6_Kubernetes_student_final.pdf) · [학생 실습 패키지 ZIP](materials/week6_student_package.zip)
 
 검증: Windows Docker Desktop와 Minikube에서 이미지 생성, Compose, Kubernetes 배포, 3개 Pod 확장·복구, v2 업데이트·v1 롤백까지 실제 통과했습니다. 학교 네트워크·SSL 우회 빌드·학교 CA 빌드는 미실행입니다.
