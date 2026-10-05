@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+WORKDIR /app
+ARG APP_VERSION=v1
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 APP_VERSION=$APP_VERSION
+COPY requirements.txt .
+# 학교 실습 한정: 교수자가 인증서 오류를 확인한 경우에만 명시적으로 선택합니다.
+# 아래 두 호스트의 TLS 인증서 검증을 신뢰 처리하여 중간자 공격/패키지 변조 위험이 있습니다.
+# 개인 PC의 전역 pip/OS 인증서 설정을 바꾸지 않습니다. 운영/외부 배포에는 사용하지 마세요.
+# 정상 해결은 학교 IT가 제공한 신뢰할 수 있는 CA 번들을 사용하는 Dockerfile.ca입니다.
+# 지난주 수정 3cc0ee7 / 792d179의 trusted-host를 유지하되 requirements 버전 고정은 보존합니다.
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+COPY app.py .
+EXPOSE 5000
+CMD ["python", "app.py"]

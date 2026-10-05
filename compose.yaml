@@ -1,0 +1,12 @@
+name: week6
+services:
+  api:
+    image: week6-api:v1
+    build: ./api
+  nginx:
+    image: week6-web:v1
+    build: ./nginx
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api

@@ -1,0 +1,6 @@
+:root{font-family:"Malgun Gothic",sans-serif;color:#16314b;background:#f3f6fa;line-height:1.65}
+body{margin:0}main{max-width:960px;margin:auto;padding:44px 24px}header{border-bottom:3px solid #206bb0;padding-bottom:24px;margin-bottom:32px}
+h1{font-size:2.3rem;margin:10px 0}h2{font-size:1.35rem}section{background:white;padding:26px;margin:22px 0;border:1px solid #d3e0eb;border-radius:10px}
+label{display:block;font-weight:700;margin:14px 0 6px}input,select,textarea{box-sizing:border-box;width:100%;font:inherit;padding:10px;border:1px solid #8094a8;border-radius:5px}
+textarea{min-height:150px}button,.link{font:inherit;color:white;background:#185f9e;padding:10px 19px;border:0;border-radius:5px;cursor:pointer;display:inline-block;margin-top:12px}
+button:disabled{opacity:.6}a{color:#175b94}small,.eyebrow{color:#49667d}.result{padding:12px 0;white-space:pre-wrap}.error{color:#b32f30}li{margin:9px 0}footer{color:#49667d}
