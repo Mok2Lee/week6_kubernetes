@@ -37,6 +37,51 @@ roleRef:
   kind: Role
   name: metrics-read
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: week6-metrics-tls
+  labels:
+    app.kubernetes.io/part-of: week6-lab
+rules:
+  - apiGroups: ["apiregistration.k8s.io"]
+    resources: ["apiservices"]
+    resourceNames: ["v1beta1.external.metrics.k8s.io"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: week6-metrics-tls
+  labels:
+    app.kubernetes.io/part-of: week6-lab
+subjects:
+  - kind: ServiceAccount
+    name: metrics
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: week6-metrics-tls
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.external.metrics.k8s.io
+  labels:
+    app.kubernetes.io/part-of: week6-lab
+spec:
+  group: external.metrics.k8s.io
+  version: v1beta1
+  groupPriorityMinimum: 100
+  versionPriority: 100
+  service:
+    namespace: default
+    name: metrics
+    port: 8443
+  # The metrics Pod registers its own temporary CA at startup.
+  # Certificate verification stays enabled; no private keys are stored here.
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,6 +90,8 @@ metadata:
     app.kubernetes.io/part-of: week6-lab
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: metrics
@@ -68,10 +115,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          volumeMounts:
-            - name: tls
-              mountPath: /tls
-              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health
+              port: internal
+            periodSeconds: 3
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /health
@@ -91,10 +140,6 @@ spec:
             limits:
               cpu: 500m
               memory: 128Mi
-      volumes:
-        - name: tls
-          secret:
-            secretName: metrics-tls
 ---
 apiVersion: v1
 kind: Service

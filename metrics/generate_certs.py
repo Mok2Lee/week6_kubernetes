@@ -37,6 +37,7 @@ def generate(destination):
     (destination / 'tls.crt').write_bytes(server.public_bytes(serialization.Encoding.PEM))
     (destination / 'tls.key').write_bytes(server_key.private_bytes(serialization.Encoding.PEM,
         serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+    (destination / 'tls.key').chmod(0o600)
     # The CA private key is never written, so no root signing key remains on disk.
     print('실습용 통계 서비스 인증서 생성 완료')
 

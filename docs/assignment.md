@@ -4,7 +4,7 @@
 
 ## 1. 요청량에 따른 Pod 변화 관찰
 
-HPA 목표가 **Pod당 평균 50건/분**, 최소 1개·최대 5개인 기본 설정으로 시작합니다.
+HPA 목표가 **Pod당 평균 50건/분**, 최소 1개·최대 5개인 기본 설정으로 시작합니다. 앞 실습에서 75로 바꿨다면 `k8s/hpa.yaml`을 50으로 복원하고 **터미널 A**에서 `kubectl apply -f ./k8s/hpa.yaml`로 적용합니다.
 
 1. <http://localhost:8090>에서 프로젝트 검색을 선택하고 요청을 시작합니다.
 2. 분당 요청량을 **40 → 120 → 220건**으로 바꿉니다.
@@ -21,12 +21,11 @@ HPA 목표가 **Pod당 평균 50건/분**, 최소 1개·최대 5개인 기본 �
 
 ## 2. HPA 기준 변경
 
-**수신 프로젝트의 `week6/k8s/hpa.yaml`**에서 `averageValue: "50"`을 `averageValue: "75"`로 바꿉니다. `maxReplicas: 5`는 유지합니다. 발생기 프로젝트의 Compose 파일은 수정하지 않습니다.
+**수신 프로젝트의 `C:\lab\week6\k8s\hpa.yaml`**에서 `averageValue: "50"`을 `averageValue: "75"`로 바꿉니다. `maxReplicas: 5`는 유지합니다. 발생기 프로젝트의 Compose 파일은 수정하지 않습니다.
 
-`week6` 폴더의 PowerShell에서 실행합니다.
+**터미널 A / `C:\lab\week6`**에서 실행합니다. 터미널 B는 대시보드 연결을 유지합니다. 새 터미널을 만들지 않습니다.
 
 ```powershell
-function kubectl { minikube kubectl -- @args }
 kubectl apply -f ./k8s/hpa.yaml
 kubectl get hpa api
 ```
@@ -50,4 +49,4 @@ kubectl get hpa api
 - HPA 목표 50·75 비교 표와 변경한 `k8s/hpa.yaml`
 - 결과를 설명한 짧은 글과 본인 **week6_practice** 저장소 링크
 
-요청 발생기 코드는 제출할 필요가 없습니다. Pod 삭제·장애 복구·이미지 업데이트·롤백은 이번 과제의 필수 항목이 아닙니다. 인증서·키·토큰은 제출하거나 커밋하지 않습니다.
+요청 발생기 코드는 제출할 필요가 없습니다. Pod 삭제·장애 복구·이미지 업데이트·롤백은 이번 과제의 필수 항목이 아닙니다. 배포용 이미지·Minikube 캐시·인증서·키·토큰은 제출하거나 커밋하지 않습니다.

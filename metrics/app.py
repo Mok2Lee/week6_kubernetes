@@ -1,14 +1,17 @@
 """Small lab adapter: measurements only; Kubernetes HPA performs all scaling."""
+import base64
 import json
 import math
 import os
 import ssl
+import tempfile
 import threading
 import time
 from collections import Counter, defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from flask import Flask, jsonify, request
@@ -19,6 +22,7 @@ TARGET = 50
 MIN_REPLICAS = 1
 MAX_REPLICAS = 5
 WINDOW = 60
+API_SERVICE = 'v1beta1.external.metrics.k8s.io'
 
 
 def timestamp():
@@ -114,12 +118,19 @@ class KubernetesReader:
         self.base = 'https://' + os.environ.get('KUBERNETES_SERVICE_HOST', 'kubernetes.default.svc')
         self.base += ':' + os.environ.get('KUBERNETES_SERVICE_PORT_HTTPS', '443')
 
-    def get(self, path):
+    def request(self, path, method='GET', data=None):
         token = self.token_path.read_text(encoding='utf-8').strip()
-        req = Request(self.base + path, headers={'Authorization': 'Bearer ' + token})
+        headers = {'Authorization': 'Bearer ' + token}
+        if data is not None:
+            headers['Content-Type'] = 'application/merge-patch+json'
+        body = json.dumps(data).encode('utf-8') if data is not None else None
+        req = Request(self.base + path, data=body, headers=headers, method=method)
         context = ssl.create_default_context(cafile=str(self.ca_path))
         with urlopen(req, context=context, timeout=2) as response:
             return json.load(response)
+
+    def get(self, path):
+        return self.request(path)
 
     def objects(self):
         namespace = quote(self.namespace, safe='')
@@ -135,6 +146,42 @@ internal = Flask('metrics_internal')
 external = Flask('metrics_external')
 internal.json.ensure_ascii = False
 internal.config['MAX_CONTENT_LENGTH'] = 16 * 1024
+
+
+def register_certificate(ca_pem, client=None, attempts=30, pause=time.sleep):
+    """Trust this Pod's new certificate without creating cluster resources or disabling TLS."""
+    client = client or reader
+    path = '/apis/apiregistration.k8s.io/v1/apiservices/' + API_SERVICE
+    for attempt in range(attempts):
+        try:
+            service = client.get(path)
+            metadata = service.get('metadata', {})
+            spec = service.get('spec', {})
+            endpoint = spec.get('service', {})
+            if (metadata.get('labels', {}).get('app.kubernetes.io/part-of') != 'week6-lab'
+                    or endpoint.get('namespace') != 'default'
+                    or endpoint.get('name') != 'metrics'
+                    or endpoint.get('port') != 8443
+                    or spec.get('group') != GROUP
+                    or spec.get('version') != VERSION
+                    or spec.get('insecureSkipTLSVerify', False)):
+                raise ValueError('week6 실습용 APIService 설정을 확인하세요.')
+            client.request(path, method='PATCH', data={
+                # A concurrent edit must be rechecked before its trust is changed.
+                'metadata': {'resourceVersion': metadata['resourceVersion']},
+                'spec': {'caBundle': base64.b64encode(ca_pem).decode('ascii')},
+            })
+            print('요청량 지표 연결 준비 완료', flush=True)
+            return
+        except HTTPError as error:
+            if error.code not in {404, 409, 429, 500, 502, 503, 504}:
+                raise
+            last_error = error
+        except OSError as error:
+            last_error = error
+        if attempt + 1 < attempts:
+            pause(2)
+    raise RuntimeError('요청량 지표 연결 실패: k8s 설정과 metrics 로그를 확인하세요.') from last_error
 
 
 @internal.get('/health')
@@ -258,9 +305,17 @@ def external_metric(namespace, metric):
 
 
 if __name__ == '__main__':
-    tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    tls.minimum_version = ssl.TLSVersion.TLSv1_2
-    tls.load_cert_chain('/tls/tls.crt', '/tls/tls.key')
-    secured = make_server('0.0.0.0', 8443, external, threaded=True, ssl_context=tls)
-    threading.Thread(target=secured.serve_forever, daemon=True).start()
-    internal.run(host='0.0.0.0', port=8000, debug=False)
+    from generate_certs import generate
+
+    # Each single-replica metrics Pod owns fresh, short-lived TLS material.
+    # Recreate deployment prevents two different serving certificates overlapping.
+    with tempfile.TemporaryDirectory(prefix='week6-metrics-') as directory:
+        generate(directory)
+        files = Path(directory)
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.minimum_version = ssl.TLSVersion.TLSv1_2
+        tls.load_cert_chain(str(files / 'tls.crt'), str(files / 'tls.key'))
+        register_certificate((files / 'ca.crt').read_bytes())
+        secured = make_server('0.0.0.0', 8443, external, threaded=True, ssl_context=tls)
+        threading.Thread(target=secured.serve_forever, daemon=True).start()
+        internal.run(host='0.0.0.0', port=8000, debug=False)

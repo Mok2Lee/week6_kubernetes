@@ -1,11 +1,121 @@
 import importlib.util
+import base64
+import io
+import json
+import ssl
+import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 
 spec = importlib.util.spec_from_file_location('metrics_lab', Path(__file__).parents[1] / 'metrics/app.py')
 metrics = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(metrics)
+cert_spec = importlib.util.spec_from_file_location('lab_certificates', Path(__file__).parents[1] / 'metrics/generate_certs.py')
+certificates = importlib.util.module_from_spec(cert_spec)
+cert_spec.loader.exec_module(certificates)
+
+
+class CertificateBootstrapTests(unittest.TestCase):
+    def api_service(self):
+        return {'metadata': {'resourceVersion': '7', 'labels': {'app.kubernetes.io/part-of': 'week6-lab'}},
+                'spec': {'group': 'external.metrics.k8s.io', 'version': 'v1beta1',
+                         'service': {'namespace': 'default', 'name': 'metrics', 'port': 8443}}}
+
+    def test_patches_only_named_api_service_and_preserves_verified_tls(self):
+        client = MagicMock()
+        client.get.return_value = self.api_service()
+        metrics.register_certificate(b'new-ca', client=client)
+        path = '/apis/apiregistration.k8s.io/v1/apiservices/v1beta1.external.metrics.k8s.io'
+        client.request.assert_called_once_with(path, method='PATCH', data={
+            'metadata': {'resourceVersion': '7'},
+            'spec': {'caBundle': base64.b64encode(b'new-ca').decode('ascii')}})
+
+    def test_refuses_foreign_service_or_insecure_configuration(self):
+        for change in ['owner', 'namespace', 'name', 'port', 'group', 'version', 'insecure']:
+            with self.subTest(change=change):
+                obj = self.api_service()
+                if change == 'owner':
+                    obj['metadata']['labels']['app.kubernetes.io/part-of'] = 'other'
+                elif change in {'namespace', 'name', 'port'}:
+                    obj['spec']['service'][change] = 'other'
+                elif change in {'group', 'version'}:
+                    obj['spec'][change] = 'other'
+                else:
+                    obj['spec']['insecureSkipTLSVerify'] = True
+                client = MagicMock()
+                client.get.return_value = obj
+                with self.assertRaises(ValueError):
+                    metrics.register_certificate(b'new-ca', client=client)
+                client.request.assert_not_called()
+
+    def test_waits_for_manifest_and_rechecks_concurrent_change(self):
+        client = MagicMock()
+        client.get.side_effect = [HTTPError('https://cluster', 404, 'not yet applied', {}, None),
+                                  self.api_service(), self.api_service()]
+        client.request.side_effect = [HTTPError('https://cluster', 409, 'changed', {}, None), {}]
+        pause = MagicMock()
+        metrics.register_certificate(b'new-ca', client=client, attempts=3, pause=pause)
+        self.assertEqual(client.get.call_count, 3)
+        self.assertEqual(client.request.call_count, 2)
+        self.assertEqual(pause.call_count, 2)
+
+    def test_permission_failure_is_not_hidden_and_outage_is_bounded(self):
+        client = MagicMock()
+        denied = HTTPError('https://cluster', 403, 'forbidden', {}, None)
+        client.get.side_effect = denied
+        pause = MagicMock()
+        with self.assertRaises(HTTPError):
+            metrics.register_certificate(b'ca', client=client, pause=pause)
+        pause.assert_not_called()
+        client.get.side_effect = OSError('unavailable')
+        with self.assertRaises(RuntimeError):
+            metrics.register_certificate(b'ca', client=client, attempts=2, pause=pause)
+        client.request.assert_not_called()
+        pause.assert_called_once_with(2)
+
+    def test_fresh_certificates_validate_for_service_and_keys_are_not_shared(self):
+        from cryptography import x509
+        from cryptography.hazmat.primitives import serialization
+
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            certificates.generate(first)
+            certificates.generate(second)
+            first, second = Path(first), Path(second)
+            ca = x509.load_pem_x509_certificate((first / 'ca.crt').read_bytes())
+            leaf = x509.load_pem_x509_certificate((first / 'tls.crt').read_bytes())
+            leaf.verify_directly_issued_by(ca)
+            names = leaf.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+            self.assertIn('metrics.default.svc', names.get_values_for_type(x509.DNSName))
+            key = serialization.load_pem_private_key((first / 'tls.key').read_bytes(), password=None)
+            self.assertEqual(key.public_key().public_numbers(), leaf.public_key().public_numbers())
+            self.assertNotEqual((first / 'tls.key').read_bytes(), (second / 'tls.key').read_bytes())
+            self.assertNotEqual((first / 'ca.crt').read_bytes(), (second / 'ca.crt').read_bytes())
+            self.assertEqual({p.name for p in first.iterdir()}, {'ca.crt', 'tls.crt', 'tls.key'})
+            tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            tls.load_cert_chain(str(first / 'tls.crt'), str(first / 'tls.key'))
+
+    def test_api_patch_uses_service_account_and_cluster_ca_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            certificates.generate(directory)
+            (directory / 'token').write_text('test-token', encoding='utf-8')
+            reader = metrics.KubernetesReader()
+            reader.token_path = directory / 'token'
+            reader.ca_path = directory / 'ca.crt'
+            response = MagicMock()
+            response.__enter__.return_value = io.StringIO('{}')
+            with patch.object(metrics, 'urlopen', return_value=response) as opener:
+                reader.request('/apis/example', method='PATCH', data={'spec': {'caBundle': 'value'}})
+            req = opener.call_args.args[0]
+            context = opener.call_args.kwargs['context']
+            self.assertEqual(req.method, 'PATCH')
+            self.assertEqual(req.get_header('Authorization'), 'Bearer test-token')
+            self.assertEqual(req.get_header('Content-type'), 'application/merge-patch+json')
+            self.assertEqual(json.loads(req.data), {'spec': {'caBundle': 'value'}})
+            self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+            self.assertTrue(context.check_hostname)
 
 
 class MetricsTests(unittest.TestCase):

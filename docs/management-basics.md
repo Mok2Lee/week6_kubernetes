@@ -47,7 +47,7 @@ CPU `100m`은 0.1 CPU, 메모리 `128Mi`는 128 MiB입니다. CPU 상한은 실�
 
 ## 상태 → 이벤트 → 로그 → 연결
 
-기본 명령은 학생 실습의 같은 PowerShell 환경에서 실행합니다.
+기본 명령은 **터미널 A / `C:\lab\week6`**에서 실행합니다. 터미널 B는 대시보드 연결을 유지합니다.
 
 ```powershell
 kubectl get nodes
@@ -65,7 +65,7 @@ kubectl get endpointslices
 |화면에 보이는 상태|다음 확인|
 |---|---|
 |`Pending`|Node 자원 부족·배치 조건 확인|
-|`ImagePullBackOff`|이미지 이름·Minikube 이미지 등록 여부 확인|
+|`ErrImageNeverPull`|제공 이미지 불러오기·이미지 이름·Minikube 이미지 전달 여부 확인|
 |`CrashLoopBackOff`|앱 로그·실행 명령·환경 설정 확인|
 |실행 중인데 `Ready`가 0|readiness 경로·포트·응답 확인|
 |Pod는 준비됐는데 요청 실패|Service selector·포트·EndpointSlice 확인|
@@ -92,7 +92,7 @@ kubectl get endpointslices
 |RBAC|신원별로 조회·변경 가능한 자원을 제한|
 |PVC|Pod가 바뀌어도 사용할 저장 공간을 요청|
 
-대시보드와 지표 어댑터는 필요한 상태를 읽을 권한만 갖도록 합니다. 실행 수는 HPA가 조절합니다. Secret의 base64 표현은 암호화가 아닙니다. Pod 메모리에 저장한 값은 Pod가 사라지면 없어지므로, 보존할 데이터는 저장소와 백업을 따로 설계합니다.
+제공된 지표 앱에는 상태 조회와 HPA 지표 연결에 필요한 권한을 지정합니다. 실행 수는 HPA가 조절합니다. Secret의 base64 표현은 암호화가 아닙니다. Pod 메모리에 저장한 값은 Pod가 사라지면 없어지므로, 보존할 데이터는 저장소와 백업을 따로 설계합니다.
 
 [ConfigMap](https://kubernetes.io/docs/concepts/configuration/configmap/), [Secret](https://kubernetes.io/docs/concepts/configuration/secret/), [ServiceAccount](https://kubernetes.io/docs/concepts/security/service-accounts/), [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/), [PVC](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
 
