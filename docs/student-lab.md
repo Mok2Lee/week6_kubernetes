@@ -90,11 +90,14 @@ winget install Kubernetes.minikube
 minikube version
 minikube start -p week6 --driver=docker --cpus=2 --memory=3072
 minikube status -p week6
+function kubectl { minikube kubectl -p week6 -- @args }
 kubectl --context=week6 get nodes
 kubectl --context=week6 cluster-info
 ```
 
 **예상 결과·검증:** week6 노드가 `Ready`입니다. 처음 실행할 때 노드 이미지·Kubernetes 구성요소를 다운로드하므로 시간이 걸립니다. 아래 명령들은 `--context=week6`을 명시해 다른 클러스터에 영향을 주지 않습니다.
+
+Docker Desktop에 포함된 kubectl이 새 Kubernetes보다 오래될 수 있습니다. 위 함수는 **현재 PowerShell 터미널에서만** Minikube가 제공하는 맞는 kubectl을 호출합니다. OS·PATH·PowerShell 프로필을 저장 변경하지 않습니다. 처음 호출할 때 호환되는 kubectl을 내려받을 수 있습니다. **새 터미널 B에서도 함수 한 줄을 다시 실행**합니다. 터미널을 닫으면 함수는 사라집니다. `kubectl version --client`로 버전을 확인합니다.
 
 **오류 해결:** 메모리 부족은 Docker Desktop/WSL 자원 상태를 확인합니다. 다운로드 오류는 학교 프록시·신뢰 CA·방화벽을 교수자/IT 담당자와 확인합니다. 전역 TLS 검증 해제나 방화벽 해제를 사용하지 않습니다. `minikube logs -p week6 --problems`로 원인을 확인합니다.
 
@@ -135,7 +138,7 @@ kubectl --context=week6 apply -f ./k8s/api.yaml
 kubectl --context=week6 -n week6 rollout status deployment/api --timeout=120s
 kubectl --context=week6 apply -f ./k8s/web.yaml
 kubectl --context=week6 -n week6 rollout status deployment/web --timeout=120s
-kubectl --context=week6 -n week6 get deployments,pods,services
+kubectl --context=week6 -n week6 get "deployments,pods,services"
 kubectl --context=week6 -n week6 get endpointslices
 ```
 
@@ -156,6 +159,7 @@ kubectl --context=week6 -n week6 port-forward service/web 8080:80
 **예상 결과:** `Forwarding from 127.0.0.1:8080 -> 80`. 새 PowerShell 터미널 B를 열고 week6 폴더에서 실행합니다.
 
 ```powershell
+function kubectl { minikube kubectl -p week6 -- @args }
 curl.exe -i http://localhost:8080/api/health
 curl.exe -s "http://localhost:8080/api/projects?category=web"
 kubectl --context=week6 -n week6 logs deployment/api --tail=10
@@ -202,6 +206,8 @@ curl.exe -s http://localhost:8080/api/health
 ```
 
 **예상 결과·검증:** 교체 완료 후 version은 v2, 되돌린 후 v1입니다. Pod 이름도 바뀝니다. `rollout undo`는 Pod 템플릿의 이전 revision으로 돌아가며 데이터나 코드 파일을 되돌리는 Git 명령이 아닙니다. `set image`는 로컬 YAML 파일을 수정하지 않습니다. v2를 최종 상태로 보존하려면 YAML의 image도 맞춰야 합니다.
+
+Kubernetes 버전에 따라 rollback이 `last-applied-configuration`을 갱신하지 않는다는 경고가 나올 수 있습니다. 롤백 후에는 YAML의 image와 replicas를 의도한 최종 상태에 맞추고, 다음 apply가 무엇을 바꿀지 확인합니다. 실습에서는 v1 복원을 확인한 뒤 이번 namespace를 정리합니다.
 
 **오류 해결:** v2를 load하지 않으면 `ErrImageNeverPull`입니다. 이미지 load 후 rollout 상태를 다시 확인합니다. 학교용 이미지를 사용했다면 v2 빌드에도 같은 Dockerfile 선택이 필요합니다.
 
